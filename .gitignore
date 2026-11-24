@@ -1,0 +1,53 @@
+# ========================================================
+# Python Virtual Environments & Compiled Bytecode
+# ========================================================
+.venv/
+venv/
+env/
+ENV/
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# ========================================================
+# Operating System & IDE Specific
+# ========================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ========================================================
+# Execution Logs & Diagnostics
+# ========================================================
+*.log
+*.log.*
+*.stderr.log
+*.stdout.log
+
+# ========================================================
+# COLMAP Intermediate Stereo Cache (10+ GB of depth/normal maps)
+# Only final 3D deliverables (point_cloud.ply, mesh.ply, voxels.ply) are tracked
+# ========================================================
+outputs/**/dense/
+outputs/**/database.db
+outputs/**/*.vis
+outputs/**/mask_workspace/
+outputs/**/mask_input/
+outputs/**/mesh_untrimmed_diagnostic.ply
+prepared/
+
+# ========================================================
+# Standalone Binaries & Large Archives
+# ========================================================
+tectonic_bin/
+*.zip
+*.tar
+*.gz
