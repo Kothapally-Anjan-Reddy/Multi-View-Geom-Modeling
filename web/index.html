@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reconstruct3D Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#080e1c;--panel:#101a2b;--line:#273650;--muted:#9fb0cb;--accent:#57a8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#ecf4ff;font:14px system-ui,Segoe UI,sans-serif}header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--line);gap:16px}header h1{margin:0;font-size:22px;letter-spacing:-.5px}header h1 span{color:var(--accent)}.sub{color:var(--muted);font-size:12px;margin-top:4px}.tag{padding:8px 12px;border-radius:99px;background:#162940;color:#a7d2ff;border:1px solid #315177;font-size:12px}.layout{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:calc(100vh - 85px)}aside{border-right:1px solid var(--line);padding:24px 18px;background:#0c1525}.section{color:#8499b9;font-size:11px;font-weight:800;letter-spacing:1.5px;margin:0 0 14px}button{cursor:pointer;font:inherit}button.mode{display:flex;justify-content:space-between;align-items:center;width:100%;border:1px solid transparent;background:transparent;color:#c6d5ed;text-align:left;padding:14px 12px;border-radius:10px;margin:5px 0}button.mode:hover{background:#182740}button.mode.active{background:#173459;border-color:#326aa2;color:white}.hint{font-size:12px;color:var(--muted);line-height:1.7;margin:16px 2px}.divider{height:1px;background:var(--line);margin:24px 0}main{min-width:0;padding:24px;display:flex;flex-direction:column;gap:16px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.top h2{margin:0;font-size:20px}.toolbar{display:flex;gap:9px;flex-wrap:wrap}.tool{border:1px solid #344761;background:#15233a;color:#d9e9ff;border-radius:8px;padding:9px 12px}.tool:hover{background:#24405f}.viewer{height:min(65vh,680px);min-height:390px;background:radial-gradient(ellipse at center,#15263f,#080f1d 75%);border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden}canvas{display:block;width:100%;height:100%}.overlay{position:absolute;left:18px;top:16px;color:#a7bbd6;font-size:12px;pointer-events:none}.empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:28px;pointer-events:none}.empty .orb{font-size:52px;margin-bottom:10px}.empty h3{font-size:20px;margin:0 0 8px}.empty p{color:var(--muted);line-height:1.7;max-width:440px}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px}.metric .v{font-size:23px;font-weight:750;margin-top:8px}.metric .k{color:var(--muted);font-size:12px}.foot{color:#91a6c5;font-size:12px;line-height:1.6}code{background:#1a2a40;border-radius:4px;padding:3px 6px;color:#b7d8ff}#error{color:#ffb1b1;font-size:12px;min-height:18px}@media(max-width:850px){.layout{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);padding:15px}aside .modes{display:flex;gap:8px;flex-wrap:wrap}button.mode{width:auto}.metrics{grid-template-columns:repeat(2,1fr)}main{padding:14px}.viewer{min-height:340px;height:55vh}} 
+:root{color-scheme:light;--bg:#f2f2f2;--panel:#fff;--line:#ddd;--muted:#69747c;--accent:#10a8d2}body{color:#41474b;font-size:16px}header,aside{background:#fff}header{box-shadow:0 2px 4px #0001}.sub,.hint,.metric .k,.foot{font-size:14px}.section{font-size:13px;color:#69747c}.tool{background:#fff;color:#008eb6;border-color:#cbd7dc;border-radius:4px}.tool:hover{background:#edfaff}button.mode{color:#59656c;border-radius:4px}button.mode:hover{background:#eff8fb}button.mode.active{background:#e7f7fc;color:#008eb6;border-color:#b9e7f3}.tag{background:#eaf8fc;color:#0084aa;border-color:#c9eaf4}.metric{border-radius:4px}.viewer{border-radius:4px}.empty{color:#ecf4ff}.empty p{color:#aebdcd}#error{color:#ae3030}.foot{color:#69747c}input[type=range]{accent-color:#10a8d2}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script></head>
+<body><header><a href="/" class="tool" style="text-decoration:none">Home / Library</a><div><h1>◈ Reconstruct<span>3D</span> Studio</h1><div class="sub"><span id="project-name">Interactive reconstruction explorer</span></div></div><span class="tag" id="status">Checking outputs…</span></header>
+<div class="layout"><aside><div class="section">REPRESENTATIONS</div><div class="modes">
+<button class="mode active" data-mode="point_cloud">✦ &nbsp; Dense Point Cloud <span>›</span></button>
+<button class="mode" data-mode="mesh">△ &nbsp; Polygonal Mesh <span>›</span></button>
+<button class="mode" data-mode="voxels">▦ &nbsp; Voxel Grid <span>›</span></button>
+<button class="mode" data-mode="sparse">· &nbsp; Sparse SfM <span>›</span></button>
+</div><div class="divider"></div><div class="section">CONTROLS</div><p class="hint">Drag to rotate · Scroll to zoom · Right-drag to move.<br><b>W/S</b> tilt the object; <b>A/D</b> rotate it left/right. Turn <b>Move</b> on to pan the view. Click <b>Pick object center</b>, then click the middle of the object. The grid and rotation center move there. Scroll to zoom in. <b>Center object</b> returns to your chosen center; <b>Reset view</b> clears it.</p><div class="divider"></div><div class="section">PIPELINE</div><p class="hint">SIFT → SfM → Bundle Adjustment → PatchMatch MVS → Poisson Mesh → Voxelization</p></aside>
+<main><div class="top"><div><h2 id="heading">Dense Point Cloud</h2><div class="sub" id="description">Fused multi-view stereo geometry</div></div><div class="toolbar"><button class="tool" id="pick-center" aria-pressed="false">Pick object center</button><button class="tool" id="center" title="Center the object while keeping the viewing angle">Center object</button><button class="tool" id="move" aria-pressed="false" title="Switch left-drag between rotating and moving the view">Move: Off</button><button class="tool" id="reset">↻ Reset view</button><button class="tool" id="fit-all">Fit all</button><button class="tool" id="flip" aria-pressed="false">Flip upright</button><label class="tool">Point size <input id="point-size" aria-label="Point size" type="range" min="1" max="8" step="0.5" value="1" style="width:80px;vertical-align:middle"></label><button class="tool" id="wire">Wireframe</button><button class="tool" id="grid">Grid: On</button><button class="tool" id="refresh">Refresh outputs</button><button class="tool" id="save-view" disabled>Save view</button><button class="tool" id="restore-view" disabled>Restore saved view</button><button class="tool" id="forget-view">Forget saved view</button><span id="view-message" role="status" style="font-size:14px;align-self:center"></span></div></div>
+<div class="viewer" id="viewer"><div class="overlay">INTERACTIVE 3D VIEWPORT</div><div class="empty" id="empty"><div class="orb">⬡</div><h3>No reconstruction loaded</h3><p>Put object photos in <code>images/</code> and run the reconstruction pipeline. The generated 3D outputs will appear here automatically when you refresh.</p></div></div>
+<div id="error"></div><div class="metrics"><div class="metric"><div class="k">Input images</div><div class="v" id="m-images">—</div></div><div class="metric"><div class="k">Dense points</div><div class="v" id="m-points">—</div></div><div class="metric"><div class="k">Mesh triangles</div><div class="v" id="m-faces">—</div></div><div class="metric"><div class="k">Occupied voxels</div><div class="v" id="m-voxels">—</div></div></div><div class="foot">Geometry is generated from your photographs by COLMAP and Open3D. The browser visualizes existing outputs; it does not fabricate or reconstruct the object itself. Three.js modules load from a CDN, so the first browser load requires internet access.</div></main></div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
+const projectId=new URLSearchParams(location.search).get('project');
+const api=path=>path+(projectId?'?project='+encodeURIComponent(projectId):'');
+const orientationKey='reconstruct3d-flip-'+(projectId||'default');
+let savedFlip=null;try{savedFlip=localStorage.getItem(orientationKey)}catch{}
+const viewport=document.querySelector('#viewer'), empty=document.querySelector('#empty'), error=document.querySelector('#error');
+const scene=new THREE.Scene(); const camera=new THREE.PerspectiveCamera(48,1,.001,100000);
+camera.position.set(2,1.6,3);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;viewport.prepend(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x3e5575,2));const sun=new THREE.DirectionalLight(0xffffff,2.5);sun.position.set(3,6,4);scene.add(sun);
+const grid=new THREE.GridHelper(4,20,0x406080,0x263952);scene.add(grid);
+let current=null, objectRoot=null, mode='point_cloud', files={}, wire=false, flipped=savedFlip!=='false';
+let objectYaw=0, objectPitch=flipped?Math.PI:0;
+document.querySelector('#flip').setAttribute('aria-pressed',String(flipped));document.querySelector('#flip').textContent=flipped?'Undo flip':'Flip upright';
+let selectedPivot=null,selectedDistance=null,pickingCenter=false;
+const titles={point_cloud:['Dense Point Cloud','Fused multi-view stereo geometry'],mesh:['Polygonal Mesh','Poisson reconstructed triangle surface'],voxels:['Voxel Grid','Occupied 3D cells generated from the mesh'],sparse:['Sparse SfM','Triangulated feature correspondences']};
+function resize(){let w=viewport.clientWidth,h=viewport.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(viewport);resize();renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera)});
+function dispose(obj){obj.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of [].concat(o.material))m.dispose()}})}
+function normalizeObject(){
+ if(!current||!objectRoot)return;
+ objectRoot.rotation.set(0,0,0);
+ current.position.set(0,0,0);
+ current.updateWorldMatrix(true,false);
+ const rawBox=new THREE.Box3().setFromObject(current);
+ if(rawBox.isEmpty())return;
+ const center=rawBox.getCenter(new THREE.Vector3());
+ current.position.copy(center).multiplyScalar(-1);
+ objectRoot.updateWorldMatrix(true,true);
+ applyObjectPose();
+}
+function placeGridAtObjectBase(){
+ if(!current||!objectRoot)return;
+ objectRoot.updateWorldMatrix(true,true);
+ const box=new THREE.Box3().setFromObject(current);
+ if(box.isEmpty())return;
+ const size=box.getSize(new THREE.Vector3());
+ const radius=Math.max(size.length()/2,.0001);
+ grid.position.set(0,box.min.y-.03*radius,0);
+ grid.scale.setScalar(radius*.65);
+}
+function applyObjectPose(){
+ if(!objectRoot)return;
+ objectRoot.rotation.set(objectPitch,objectYaw,0,'XYZ');
+ placeGridAtObjectBase();
+}
+function focusBounds(obj){
+ obj.updateWorldMatrix(true,false);
+ if(!obj.isPoints)return new THREE.Box3().setFromObject(obj);
+ if(obj.userData.focusBounds)return obj.userData.focusBounds.clone().applyMatrix4(obj.matrixWorld);
+ const p=obj.geometry.getAttribute('position'),axes=[[],[],[]],step=Math.max(1,Math.ceil(p.count/50000));
+ for(let i=0;i<p.count;i+=step){const v=[p.getX(i),p.getY(i),p.getZ(i)];if(v.every(Number.isFinite))v.forEach((x,k)=>axes[k].push(x));}
+ if(!axes[0].length)return new THREE.Box3().setFromObject(obj);
+ axes.forEach(a=>a.sort((a,b)=>a-b));
+ const q=t=>new THREE.Vector3(...axes.map(a=>a[Math.floor((a.length-1)*t)]));
+ const box=new THREE.Box3(q(.02),q(.98));
+ obj.userData.focusBounds=box.clone();return box.applyMatrix4(obj.matrixWorld);
+}
+function centerOnSelection(){
+ if(!current||!selectedPivot)return;
+ current.updateWorldMatrix(true,false);
+ const target=current.localToWorld(selectedPivot.clone());
+ const offset=camera.position.clone().sub(controls.target);
+ if(offset.lengthSq()<1e-12)offset.set(.8,.45,1);
+ offset.setLength(selectedDistance||offset.length());
+ const damping=controls.enableDamping;controls.enableDamping=false;controls.update();
+ controls.target.copy(target);camera.position.copy(target).add(offset);
+ const full=new THREE.Box3().setFromObject(current);
+ camera.far=Math.max(camera.far,offset.length()+full.getSize(new THREE.Vector3()).length()*3);
+ camera.updateProjectionMatrix();grid.position.copy(target);
+ grid.scale.setScalar(Math.max(offset.length()*.15,.0001));
+ controls.update();controls.enableDamping=damping;
+}
+function setPicking(active){
+ pickingCenter=active;controls.enabled=!active;
+ const button=document.querySelector('#pick-center');
+ button.setAttribute('aria-pressed',String(active));button.textContent=active?'Cancel picking':'Pick object center';
+ renderer.domElement.style.cursor=active?'crosshair':(document.querySelector('#move').getAttribute('aria-pressed')==='true'?'move':'grab');
+ document.querySelector('.overlay').textContent=active?'CLICK THE MIDDLE OF THE OBJECT · ESC TO CANCEL':'INTERACTIVE 3D VIEWPORT';
+}
+document.querySelector('#pick-center').onclick=()=>{if(current)setPicking(!pickingCenter);else error.textContent='Load a reconstruction first.'};
+window.addEventListener('keydown',event=>{if(event.key==='Escape')setPicking(false)});
+renderer.domElement.addEventListener('pointerup',event=>{
+ if(!pickingCenter||!current||event.button!==0)return;
+ const rect=renderer.domElement.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
+ current.updateWorldMatrix(true,false);camera.updateMatrixWorld();
+ let point=null;
+ if(current.isPoints){
+  // Pick the closest visible point on screen, rather than a distant outlier along a broad ray.
+  const positions=current.geometry.getAttribute('position'),world=new THREE.Vector3(),screen=new THREE.Vector3();
+  let best=12*12,bestDepth=Infinity;
+  for(let i=0;i<positions.count;i++){
+   world.fromBufferAttribute(positions,i).applyMatrix4(current.matrixWorld);screen.copy(world).project(camera);
+   if(screen.z < -1||screen.z > 1)continue;
+   const dx=(screen.x+1)*rect.width/2-x,dy=(1-screen.y)*rect.height/2-y,d=dx*dx+dy*dy;
+   if(d<best||(d===best&&screen.z<bestDepth)){best=d;bestDepth=screen.z;point=world.clone();}
+  }
+ }else{
+  const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(x/rect.width*2-1,1-y/rect.height*2),camera);
+  point=ray.intersectObject(current,false)[0]?.point;
+ }
+ if(!point){error.textContent='No model point there. Click directly on the object, or zoom closer and try again.';return;}
+ selectedPivot=current.worldToLocal(point.clone());selectedDistance=camera.position.distanceTo(controls.target);
+ error.textContent='';setPicking(false);centerOnSelection();
+});
+controls.addEventListener('end',()=>{if(selectedPivot&&!pickingCenter)selectedDistance=camera.position.distanceTo(controls.target)});
+function frame(obj,all=false,keepAngle=false){
+ if(selectedPivot&&!all){centerOnSelection();return;}
+ const full=new THREE.Box3().setFromObject(obj),box=all?full:focusBounds(obj);if(box.isEmpty())return;
+ const center=box.getCenter(new THREE.Vector3()),r=Math.max(box.getSize(new THREE.Vector3()).length()/2,.0001);
+ const vertical=THREE.MathUtils.degToRad(camera.fov)/2,horizontal=Math.atan(Math.tan(vertical)*camera.aspect);
+ const distance=1.12*r/Math.sin(Math.min(vertical,horizontal));
+ const direction=keepAngle?camera.position.clone().sub(controls.target):new THREE.Vector3(.8,.45,1);
+ if(direction.lengthSq()<1e-12)direction.set(.8,.45,1);
+ controls.target.copy(center);camera.position.copy(center).add(direction.normalize().multiplyScalar(distance));
+ camera.near=Math.max(r/10000,.000001);camera.far=Math.max(distance+full.getSize(new THREE.Vector3()).length()*3,r*100);
+ camera.updateProjectionMatrix();grid.position.set(center.x,box.min.y-.03*r,center.z);grid.scale.setScalar(r*.65);controls.update();
+}
+async function load(){document.querySelector('#save-view').disabled=true;setPicking(false);error.textContent='';empty.style.display='none';if(objectRoot){scene.remove(objectRoot);dispose(objectRoot);objectRoot=null;current=null}const key=mode;try{
+if(key==='voxels'){if(!files['voxels.npz'])throw Error('Voxel grid not generated yet. Run the full pipeline.');const response=await fetch(api('/api/voxels'));if(!response.ok)throw Error('Unable to load voxels');const data=await response.json();const geometry=new THREE.BoxGeometry(data.size*.96,data.size*.96,data.size*.96);const material=new THREE.MeshStandardMaterial({color:0x5baeff,roughness:.55,metalness:.08,wireframe:wire});const cubes=new THREE.InstancedMesh(geometry,material,data.indices.length);const matrix=new THREE.Matrix4();data.indices.forEach((v,i)=>{matrix.makeTranslation(data.origin[0]+(v[0]+.5)*data.size,data.origin[1]+(v[1]+.5)*data.size,data.origin[2]+(v[2]+.5)*data.size);cubes.setMatrixAt(i,matrix)});cubes.instanceMatrix.needsUpdate=true;current=cubes;}
+else {const file=key==='sparse'?'sparse.ply':key==='mesh'?'mesh.ply':'point_cloud.ply';if(!files[file])throw Error('Output '+file+' not found. Run the reconstruction first.');const loader=new PLYLoader();const geom=await loader.loadAsync(api('/api/file/'+file));geom.computeBoundingSphere();if(key==='mesh'){geom.computeVertexNormals();current=new THREE.Mesh(geom,new THREE.MeshStandardMaterial({vertexColors:geom.hasAttribute('color'),color:0xb5d9ff,roughness:.8,side:THREE.DoubleSide,wireframe:wire}));}else{const bb=geom.boundingSphere;current=new THREE.Points(geom,new THREE.PointsMaterial({size:Number(document.querySelector('#point-size').value),sizeAttenuation:false,vertexColors:geom.hasAttribute('color'),color:geom.hasAttribute('color')?0xffffff:0x75b9ff}));}}
+objectRoot=new THREE.Group();objectRoot.add(current);scene.add(objectRoot);selectedPivot=null;selectedDistance=null;normalizeObject();frame(current);if(pendingView&&pendingView.mode===mode){applySavedView(pendingView);pendingView=null;}document.querySelector('#save-view').disabled=false;
+}catch(e){empty.style.display='flex';error.textContent=e.message||String(e)}}
+async function refresh(){try{const r=await fetch(api('/api/status'));if(!r.ok)throw Error('Backend not available');const data=await r.json();files=data.files;document.querySelector('#project-name').textContent=data.name||'Reconstruction';if(!current&&mode==='point_cloud'&&!files['point_cloud.ply']&&files['sparse.ply']){mode='sparse';document.querySelector('.mode.active')?.classList.remove('active');document.querySelector('[data-mode="sparse"]').classList.add('active');document.querySelector('#heading').textContent=titles.sparse[0];document.querySelector('#description').textContent=titles.sparse[1];}const m=data.metrics;const fmt=n=>typeof n==='number'?n.toLocaleString():'—';document.querySelector('#m-images').textContent=fmt(m.input_images);document.querySelector('#m-points').textContent=fmt(m.dense_points);document.querySelector('#m-faces').textContent=fmt(m.mesh_triangles);document.querySelector('#m-voxels').textContent=fmt(m.occupied_voxels);document.querySelector('#status').textContent=files['point_cloud.ply']?'● Reconstruction available':'○ Awaiting reconstruction';await load()}catch(e){error.textContent=e.message}}
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('.mode.active')?.classList.remove('active');b.classList.add('active');mode=b.dataset.mode;document.querySelector('#heading').textContent=titles[mode][0];document.querySelector('#description').textContent=titles[mode][1];load()}));
+document.querySelector('#flip').onclick=()=>{flipped=!flipped;try{localStorage.setItem(orientationKey,String(flipped))}catch{}const button=document.querySelector('#flip');button.textContent=flipped?'Undo flip':'Flip upright';button.setAttribute('aria-pressed',String(flipped));if(current){objectYaw=0;objectPitch=flipped?Math.PI:0;applyObjectPose();selectedPivot=null;selectedDistance=null;frame(current)}};
+document.querySelector('#center').onclick=()=>current&&frame(current,false,true);
+document.querySelector('#move').onclick=()=>{const button=document.querySelector('#move'),moving=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(moving));button.textContent=moving?'Move: On':'Move: Off';controls.mouseButtons.LEFT=moving?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;controls.touches.ONE=moving?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;renderer.domElement.style.cursor=moving?'move':'grab'};
+controls.screenSpacePanning=true;renderer.domElement.style.cursor='grab';
+document.querySelector('#fit-all').onclick=()=>current&&frame(current,true);
+document.querySelector('#point-size').oninput=e=>{if(current?.isPoints)current.material.size=Number(e.target.value)};
+document.querySelector('#reset').onclick=()=>{selectedPivot=null;selectedDistance=null;setPicking(false);if(current)frame(current)};document.querySelector('#refresh').onclick=refresh;
+window.addEventListener('keydown',event=>{
+ if(!current||pickingCenter||event.ctrlKey||event.metaKey||event.altKey)return;
+ if(event.target instanceof HTMLInputElement||event.target instanceof HTMLTextAreaElement)return;
+ const key=event.key.toLowerCase();
+ if(!['w','a','s','d'].includes(key))return;
+ event.preventDefault();
+ selectedPivot=null;
+ selectedDistance=null;
+ if(key==='w')objectPitch-=THREE.MathUtils.degToRad(5);
+ if(key==='s')objectPitch+=THREE.MathUtils.degToRad(5);
+ if(key==='a')objectYaw-=THREE.MathUtils.degToRad(5);
+ if(key==='d')objectYaw+=THREE.MathUtils.degToRad(5);
+ applyObjectPose();
+});
+document.querySelector('#wire').onclick=()=>{wire=!wire;document.querySelector('#wire').textContent=wire?'Solid':'Wireframe';if(current&&!current.isPoints)current.material.wireframe=wire;};
+document.querySelector('#grid').onclick=()=>{grid.visible=!grid.visible;document.querySelector('#grid').textContent=grid.visible?'Grid: On':'Grid: Off'};
+// View settings belong to this object and this browser, independently of other models.
+const viewKey='reconstruct3d-view-v1-'+(projectId||'default');
+let pendingView=null,savedView=null;
+const viewMessage=document.querySelector('#view-message');
+function validView(v){
+ const vector=a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite);
+ return v&&v.version===1&&Object.hasOwn(titles,v.mode)&&vector(v.position)&&vector(v.target)&&vector(v.up)&&vector(v.gridPosition)&&vector(v.gridScale)&&
+ [v.near,v.far,v.zoom,v.pointSize,v.pitch,v.yaw].every(Number.isFinite)&&v.near>0&&v.far>v.near&&v.zoom>0&&v.pointSize>=1&&v.pointSize<=8&&
+ (v.pivot===null||vector(v.pivot))&&(v.distance===null||(Number.isFinite(v.distance)&&v.distance>0))&&
+ ['wire','grid','flipped','moving'].every(k=>typeof v[k]==='boolean');
+}
+function prepareView(v){
+ mode=v.mode;wire=v.wire;flipped=v.flipped;objectPitch=v.pitch;objectYaw=v.yaw;
+ document.querySelector('#point-size').value=v.pointSize;
+ document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+ document.querySelector('#heading').textContent=titles[mode][0];document.querySelector('#description').textContent=titles[mode][1];
+ document.querySelector('#wire').textContent=wire?'Solid':'Wireframe';
+ document.querySelector('#flip').textContent=flipped?'Undo flip':'Flip upright';document.querySelector('#flip').setAttribute('aria-pressed',String(flipped));
+ grid.visible=v.grid;document.querySelector('#grid').textContent=v.grid?'Grid: On':'Grid: Off';
+ const move=document.querySelector('#move');move.setAttribute('aria-pressed',String(v.moving));move.textContent=v.moving?'Move: On':'Move: Off';
+ controls.mouseButtons.LEFT=v.moving?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;controls.touches.ONE=v.moving?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE;
+ renderer.domElement.style.cursor=v.moving?'move':'grab';
+}
+function applySavedView(v){
+ prepareView(v);applyObjectPose();
+ selectedPivot=v.pivot?new THREE.Vector3().fromArray(v.pivot):null;selectedDistance=v.distance;
+ const damping=controls.enableDamping;controls.enableDamping=false;controls.update();
+ camera.position.fromArray(v.position);camera.up.fromArray(v.up);camera.near=v.near;camera.far=v.far;camera.zoom=v.zoom;camera.updateProjectionMatrix();controls.target.fromArray(v.target);
+ controls.update();controls.enableDamping=damping;
+ grid.position.fromArray(v.gridPosition);grid.scale.fromArray(v.gridScale);
+ if(current?.isPoints)current.material.size=v.pointSize;else if(current)current.material.wireframe=v.wire;
+ viewMessage.textContent='Saved view restored';
+}
+document.querySelector('#save-view').onclick=()=>{
+ if(!current)return;
+ const v={version:1,mode,position:camera.position.toArray(),target:controls.target.toArray(),up:camera.up.toArray(),near:camera.near,far:camera.far,zoom:camera.zoom,
+ pivot:selectedPivot?.toArray()||null,distance:selectedDistance,pitch:objectPitch,yaw:objectYaw,flipped,wire,grid:grid.visible,gridPosition:grid.position.toArray(),gridScale:grid.scale.toArray(),pointSize:Number(document.querySelector('#point-size').value),moving:document.querySelector('#move').getAttribute('aria-pressed')==='true'};
+ try{localStorage.setItem(viewKey,JSON.stringify(v));savedView=v;document.querySelector('#restore-view').disabled=false;viewMessage.textContent='View saved for this object in this browser';}catch{viewMessage.textContent='Unable to save: browser storage is unavailable.';}
+};
+document.querySelector('#restore-view').onclick=async()=>{if(!savedView)return;pendingView=savedView;prepareView(savedView);await load();};
+document.querySelector('#forget-view').onclick=()=>{
+ try{localStorage.removeItem(viewKey);savedView=null;pendingView=null;document.querySelector('#restore-view').disabled=true;viewMessage.textContent='Saved view removed. Current view is unchanged.';}catch{viewMessage.textContent='Unable to clear browser storage.';}
+};
+try{const raw=localStorage.getItem(viewKey);if(raw){const v=JSON.parse(raw);if(validView(v)){savedView=v;pendingView=v;prepareView(v);document.querySelector('#restore-view').disabled=false;}else viewMessage.textContent='Saved view is invalid. Save a new view.';}}catch{viewMessage.textContent='Saved view could not be read.';}
+refresh();
+</script></body></html>
