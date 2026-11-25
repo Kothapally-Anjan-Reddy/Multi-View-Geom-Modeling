@@ -1,0 +1,10 @@
+{
+  "dense_points": 264992,
+  "mesh_vertices": 637645,
+  "mesh_triangles": 1254984,
+  "occupied_voxels": 8688,
+  "voxel_size_scene_units": 0.022441639380751978,
+  "note": "SfM scale is arbitrary without an external scale reference; voxel size uses mesh diagonal.",
+  "input_images": 72,
+  "sparse_model": "D:\\CS SUBJECTS COLLEGE\\3D Computer Vision\\multiview_3d_cv_project\\outputs_dog\\sparse\\0"
+}
