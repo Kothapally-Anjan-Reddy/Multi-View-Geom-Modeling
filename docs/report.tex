@@ -1,0 +1,254 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{graphicx,amsmath,amssymb,booktabs,url,cite,array,balance}
+\usepackage[hidelinks,bookmarksopen=true,bookmarksnumbered=true]{hyperref}
+\usepackage[all]{hypcap}
+\hypersetup{pdftitle={Multi-View 3D Reconstruction and Multi-Representation Geometric Modeling},pdfauthor={Kothapally Anjan Reddy; Babhale Rohan Laxmikant; Gujja Sri Varshith Rao; Koushik C}}
+\title{Multi-View 3D Reconstruction and Multi-Representation Geometric Modeling}
+\author{
+\IEEEauthorblockN{Kothapally Anjan Reddy \qquad Babhale Rohan Laxmikant}
+\IEEEauthorblockA{23bcs071: \href{mailto:23bcs071@iiitdwd.ac.in}{23bcs071@iiitdwd.ac.in} \qquad 23bcs026: \href{mailto:23bcs026@iiitdwd.ac.in}{23bcs026@iiitdwd.ac.in}}
+\vspace{2mm}
+\IEEEauthorblockN{Gujja Sri Varshith Rao \qquad Koushik C}
+\IEEEauthorblockA{23bcs051: \href{mailto:23bcs051@iiitdwd.ac.in}{23bcs051@iiitdwd.ac.in} \qquad 23bcs073: \href{mailto:23bcs073@iiitdwd.ac.in}{23bcs073@iiitdwd.ac.in}}}
+\begin{document}
+\maketitle
+\begin{abstract}
+This project integrates a classical image-to-geometry pipeline and evaluates its saved reconstructions. COLMAP provides feature matching, incremental structure from motion, dense multi-view stereo, fusion and surface meshing. Project code adds foreground preprocessing, depth-mask filtering, validation, representation export and a browser gallery. The outputs include sparse and dense point clouds, triangular meshes and surface-occupancy voxel grids. Recorded baselines cover Owl, Building, Dog and Apple; separate white-background Dog and Cat experiments expose failures that camera-registration statistics alone do not reveal. The Building baseline contains 1,466,073 dense points and 7,938,476 triangles, whereas Apple produces only 16 mesh triangles. Both masked reruns complete dense fusion but initially return empty meshes. A controlled Dog diagnostic changes only Poisson density trimming and recovers a nonempty surface. A measured Owl voxel-resolution experiment quantifies storage versus discretization. These results demonstrate a reproducible integration workflow and its limitations, rather than a new reconstruction algorithm or a ground-truth accuracy benchmark.
+\end{abstract}
+\begin{IEEEkeywords}
+Structure from motion, multi-view stereo, point cloud, surface reconstruction, foreground masking, voxelization.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Recovering three-dimensional structure from ordinary photographs is useful for object inspection, scene documentation and interactive visualization. Each photograph discards depth along its viewing rays. Overlapping views provide parallax and feature correspondences that constrain the missing geometry. A practical reconstruction system must estimate camera parameters, reject incorrect correspondences, recover dense samples, and make those samples useful to downstream applications.
+
+An explicit geometric representation remains valuable when the output must be inspected independently of a learned renderer. A point cloud stores positions and colors directly. A mesh supplies connectivity for rendering and surface operations. A voxel grid provides a discrete spatial structure. These representations answer different questions: a dense cloud is not automatically a continuous surface, and a large triangle count does not establish geometric accuracy.
+
+This project combines existing reconstruction libraries with an accessible workflow. Our contribution is orchestration, input and output validation, mask-aware preprocessing and depth filtering, export of complementary representations, and an interactive gallery. The underlying SfM and MVS methods are provided by COLMAP \cite{sfm,mvs}; geometric processing uses Open3D \cite{open3d}. We explicitly distinguish this integration work from inventing those algorithms.
+
+A further motivation is reliable reporting of failure. An object can register in nearly every image while producing an unusable mesh. We therefore record both intermediate and final artifacts, preserve failed runs, and avoid describing numerical completeness as physical accuracy. The report examines successful baselines alongside degenerate and empty-surface outcomes.
+
+\section{Problem Statement}
+The input is a set of overlapping RGB photographs of a nominally static object or scene, optionally accompanied by foreground masks. Camera poses are unknown. The required outputs are registered cameras, a sparse feature cloud, a dense colored cloud, a triangular surface and a regular surface-occupancy grid. The outputs should be accessible through a local browser viewer and reproducible through command-line steps.
+
+For image $i$, a 3D point $\mathbf{X}_j$ projects according to
+\begin{equation}
+\lambda\mathbf{x}_{ij}=\mathbf{K}_i[\mathbf{R}_i\mid\mathbf{t}_i]\mathbf{X}_j,
+\end{equation}
+where $\mathbf{K}_i$ denotes intrinsics and $(\mathbf{R}_i,\mathbf{t}_i)$ the world-to-camera pose. COLMAP also models radial distortion. The geometric interpretation follows the multiple-view framework of Hartley and Zisserman~\cite{hartley}. The camera center is $\mathbf{C}_i=-\mathbf{R}_i^\top\mathbf{t}_i$.
+
+Uncalibrated image reconstruction determines scale only up to a similarity transform. This project does not supply a measured baseline or reference length, so coordinates and voxel widths are in arbitrary scene units. No claims of millimeter accuracy, dimensional metrology or certified watertightness are made.
+
+The practical problem includes resource and packaging constraints. Dense processing runs on an NVIDIA RTX 3050 laptop GPU with 4 GB memory. The submitted archive must remain below 200 MB and offer a short demonstration without requiring the full photo collections or dense intermediate workspaces. Therefore, the package includes small demonstration inputs and compact output copies, with a record of what was reduced.
+
+\section{Literature Review}
+SIFT \cite{sift} provides local descriptors that can be matched across changes in scale and viewpoint. Its practical limitation is ambiguity: repeated texture, weak texture and large viewpoint changes can yield too few reliable matches. Geometric verification is necessary because descriptor similarity alone does not imply that two observations depict the same 3D point. RANSAC~\cite{ransac} estimates a model from small candidate subsets and evaluates agreement with the remaining observations. It addresses outliers rather than guaranteeing correct correspondences in repetitive scenes.
+
+COLMAP's incremental SfM framework \cite{sfm} integrates pair selection, registration, triangulation and refinement. It supplies the camera estimates used by our pipeline. Bundle adjustment jointly refines camera and scene parameters, rather than correcting each view independently; its formulation and gauge freedoms are reviewed by Triggs et al.~\cite{bundle}. A successful registration means an image has a pose supported by feature tracks; it does not prove that the entire scene is globally correct. The project consequently retains sparse models and intermediate logs for inspection.
+
+Dense MVS extends sparse tracks to many more surface samples. The pixelwise view-selection work underlying COLMAP \cite{mvs} jointly estimates depth and normals and uses photometric and geometric consistency. Appearance changes, occlusion and insufficient baseline remain challenging. A segmentation mask can remove background evidence, but it cannot create missing parallax or correct an erroneous camera pose.
+
+Screened Poisson reconstruction \cite{poisson} converts oriented samples into an implicit surface with point constraints. Meshing depends on the distribution and orientation of samples, and density trimming can remove weakly supported regions. A closed-looking surface may interpolate unobserved areas; that is different from observing those areas in photographs.
+
+Open3D \cite{open3d} supplies point-cloud and mesh data structures, simplification and voxelization. The rembg package \cite{rembg} supplies pretrained segmentation models. Our selected model is \texttt{isnet-general-use}; it is not a model trained on these datasets by the team. Its underlying IS-Net formulation targets dichotomous image segmentation~\cite{isnet}, using intermediate supervision to improve foreground delineation. This learning objective differs from camera-pose or surface reconstruction: a visually plausible cutout can still remove evidence needed for triangulation. These components reduce implementation effort, but their assumptions and failure modes still require inspection in the assembled workflow.
+
+\section{Objectives}
+\begin{itemize}
+\item Integrate image preparation, camera registration, dense stereo, fusion and meshing into a command-line workflow.
+\item Preserve source photos and previous outputs, with explicit validation of masks and reconstruction artifacts.
+\item Export and compare sparse points, dense points, triangle meshes and surface voxels.
+\item Provide browser controls for representation selection, rotation, centering and saved views.
+\item Measure model complexity and voxel-resolution effects from actual output files.
+\item Document failures and package a portable, small demonstration with clear third-party attribution.
+\end{itemize}
+
+\section{Methodology}
+\subsection{Data and Experimental Setting}
+The workspace contains an Owl collection (30 views), Building (128), Dog (72), Apple (72), and Cat (108). Dataset names identify the local collections; complete original acquisition metadata and photographic licensing are not established here. The report does not claim that the team captured every collection. Baseline outputs predate the later white-background Dog and Cat experiments and are identified separately.
+
+The implementation uses Python, COLMAP, Open3D, NumPy, Pillow, Flask, OpenCV and a Three.js interface. The tested COLMAP build reports version 4.2.1 with CUDA. Dense image dimensions in the white-background runs are limited to 1000 pixels on the longest side. Simultaneous Dog and Cat processing shared the GPU, so elapsed times are affected by contention and are not presented as controlled single-job benchmarks.
+
+\subsection{Foreground Preparation}
+Images are EXIF-normalized, converted to RGB and resized without changing aspect ratio. Pretrained rembg inference returns foreground alpha. A threshold of 240 produces a binary mask, followed by a two-pixel erosion at the resized resolution. An empty foreground is rejected. Excluded RGB pixels are painted white, while source photographs remain unchanged.
+
+Each output PNG has a separate binary mask using COLMAP's appended filename convention. White means foreground and black means excluded. Painting a background white is a visual transformation, not by itself a geometric constraint. The masks are explicitly supplied to feature extraction and later used to filter dense depths. Thin structures and boundary details can be removed by conservative thresholding and erosion; the example images must therefore be visually reviewed.
+
+\subsection{Sparse Reconstruction}
+Feature extraction uses GPU SIFT where requested. Exhaustive matching considers image pairs; sequential matching is available for genuinely ordered captures. The default descriptor ratio threshold is 0.8. The pipeline exposes stricter thresholds but does not assume that stricter matching always improves completeness.
+
+COLMAP estimates cameras and triangulates tracks, then refines parameters through bundle adjustment. In general this optimizes reprojection residuals,
+\begin{equation}
+E=\sum_{i,j\in\mathcal{V}}\rho\!\left(\|\mathbf{x}_{ij}-\pi(\mathbf{K}_i,\mathbf{R}_i,\mathbf{t}_i,\mathbf{X}_j)\|^2\right),
+\end{equation}
+where $\mathcal{V}$ is the observation set. The project delegates the optimizer and its loss settings to COLMAP; it does not claim a separately implemented loss function. There is no neural training stage or supervised reconstruction loss.
+
+If several sparse components are produced, the pipeline chooses the one with the largest registered-image count rather than the newest directory. It stops before dense processing when fewer than half of the images, or fewer than three images, register. This is a coarse completeness safeguard, not a proof of correct geometry.
+
+\subsection{Dense Stereo and Mask Filtering}
+The registered model is used to undistort images. PatchMatch estimates per-view depth and normal maps, followed by geometric-consistency refinement. Progress is reported separately for the initial and geometric passes, because a percentage from one pass is not an overall completion percentage.
+
+For masked runs, the same model undistorts the masks. Masks are area-resampled to depth resolution, thresholded conservatively and eroded by one pixel. Background depths are set to zero before fusion. The implementation changes depth acceptance; it does not modify PatchMatch's internal photometric objective. In particular, foreground matching windows can still overlap a painted boundary.
+
+Fusion combines consistent observations into colored oriented points. This is an important intermediate deliverable even when a subsequent surface stage fails. It is retained for diagnostic inspection and browser display.
+
+\subsection{Surface and Voxel Representations}
+COLMAP's Poisson mesher consumes the oriented point cloud. In the tested build the default density trim is 10. The pipeline checks for nonempty geometry before producing final representations. A mesher process returning success is insufficient: it may write a syntactically valid PLY with zero vertices and zero faces.
+
+For a valid surface, Open3D marks voxels intersecting its triangles. With bounding-box diagonal $D$ and relative resolution $\alpha$, voxel width is
+\begin{equation}
+s=\alpha D,\qquad\mathbf{k}=\left\lfloor\frac{\mathbf{x}-\mathbf{o}}{s}\right\rfloor.
+\end{equation}
+The resulting cells describe surface occupancy, not a guaranteed filled solid. Integer indices, origin and voxel width are saved in NPZ, while PLY cell centers and a comparison figure support inspection.
+
+
+\subsection{Geometric Consistency and Validation Criteria}
+A related distinction concerns foreground masking. Descriptor masks suppress selected feature locations, whereas depth masks remove reconstructed samples after stereo. These operations act at different stages. A foreground mask with a clean silhouette may reduce background tracks while also reducing the number of landmarks available to constrain camera motion. The implementation therefore retains separate image, mask and reconstruction artifacts so that such effects can be inspected rather than hidden by a final render.
+
+\subsection{Visualization and Packaging}
+The Flask server discovers reconstruction folders and exposes metadata and geometry. Three.js renders selectable representations with orbit controls, point-size adjustment, grid controls and a user-selected rotation center. The viewer applies rotations for orientation; camera orbit can reverse an object's apparent left-right direction without changing the geometry.
+
+The package keeps all output cases below one \texttt{outputs/} directory. Large successful meshes are simplified by vertex clustering for distribution. Benchmark counts refer to the original files; separate packaged counts describe the reduced copies. Dense workspaces, databases, virtual environments and pretrained weights are excluded. A small CPU demo converts supplied reconstructed geometry, while a separate eight-image sample exercises sparse SfM when COLMAP is installed.
+
+\section{Results and Discussion}
+\subsection{Measured Baseline Complexity}
+\hyperref[tab:baseline]{Table~\ref*{tab:baseline}} reports values read from saved models and metadata. Owl, Building and baseline Dog have substantial meshes. Apple's 16 triangles are degenerate despite complete registration and a large cloud. Counts describe computational artifacts rather than reconstruction accuracy. No reference scan is available, so we do not report Chamfer distance, geometric F-score or physical dimensional error.
+
+\begin{table}[t]
+\centering\caption{Original baseline artifacts; Bldg denotes Building.}
+\label{tab:baseline}\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrr}\toprule
+Metric & Owl & Bldg & Dog & Apple\\\midrule
+Images & 30 &128 &72 &72\\
+Registered &30 &128 &70 &72\\
+Sparse points &13,172 &78,701 &48,300 &24,045\\
+Dense points &253,195 &1,466,073 &264,992 &332,626\\
+Mesh vertices &670,169 &4,029,206 &637,645 &10\\
+Triangles &1,322,719 &7,938,476 &1,254,984 &16\\
+Surface voxels &3,793 &7,078 &8,688 &7,780\\\bottomrule
+\end{tabular}
+\end{table}
+
+The recorded Apple voxel count is retained as a historical artifact, not as evidence of a valid Apple surface. A tiny mesh extent and dense-point count can coexist when surface generation collapses; representation consistency should be checked before interpreting such results.
+
+Owl increases from 13,172 sparse points to 253,195 dense samples, approximately $19.2\times$. Building produces the largest stored baseline and motivates mesh reduction for the archive. Neither increase demonstrates an equivalent increase in accuracy: dense stereo and meshing may add interpolated or erroneous geometry.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.46\textwidth]{figures/owl_sparse.jpg}\hfill
+\includegraphics[width=.46\textwidth]{figures/owl_dense.jpg}\\
+\small (a) Sparse feature cloud\hspace{.23\textwidth}(b) Dense colored cloud\\[2mm]
+\includegraphics[width=.46\textwidth]{figures/owl_mesh.jpg}\hfill
+\includegraphics[width=.46\textwidth]{figures/owl_voxels.jpg}\\
+\small (c) Poisson surface\hspace{.27\textwidth}(d) Surface voxels
+\caption{Saved Owl renderings show four complementary representations. These are qualitative inspection views, not ground-truth comparisons. Surface completion and voxel occupancy should not be interpreted as measurements of unobserved regions.}
+\label{fig:owl}
+\end{figure*}
+
+\subsection{White-Background Experiments and Failures}
+The masked Dog rerun registers 71 of 72 images and fuses 311,221 points. Cat registers all 108 images and fuses 214,575 points. Both initial Poisson output files contain zero vertices and zero faces. The runs stop at mesh validation; no successful voxel result is claimed for either masked run.
+
+The Dog diagnostic first verifies finite coordinates, finite normals and no zero-length normals. Median normal length is approximately one. It then reruns the same mesher on the same cloud with only density trimming disabled (\texttt{trim=0}). The result has 977,922 vertices and 1,955,723 triangles. Thus, for this recorded cloud, default density trimming removed the generated surface. A nonempty diagnostic surface still requires visual review: disabling trimming can retain low-confidence fragments and does not validate surface accuracy. Cat's empty mesh remains a separately recorded failure, not an inferred success from the Dog experiment.
+
+This comparison illustrates why high registration rates are insufficient. Dog's registration rises from 70 to 71 views between baseline and masked experiments, yet its default meshing outcome becomes worse. These runs are not a fully controlled mask ablation: preprocessing, image sizes and execution history differ. Consequently, we do not attribute all changes to background color alone.
+
+\subsection{Measured Voxel-Resolution Experiment}
+The Owl original mesh is voxelized again at six relative cell widths, with no change to the input surface. \hyperref[tab:vox]{Table~\ref*{tab:vox}} and \hyperref[fig:vox]{Figure~\ref*{fig:vox}} record the actual occupied-cell counts. The storage column counts three 32-bit integer indices per cell; it excludes array headers, origin, cell-width metadata and compression effects.
+
+\begin{table}[t]
+\centering\caption{Measured Owl surface-voxel ablation.}
+\label{tab:vox}\small
+\begin{tabular}{rrrr}\toprule
+$\alpha$ & Cell width & Occupied cells & Index bytes\\\midrule
+0.005 &0.12885 &14,463 &173,556\\
+0.010 &0.25771 &3,793 &45,516\\
+0.015 &0.38656 &1,751 &21,012\\
+0.020 &0.51542 &1,021 &12,252\\
+0.030 &0.77313 &496 &5,952\\
+0.050 &1.28855 &199 &2,388\\\bottomrule
+\end{tabular}
+\end{table}
+
+Finer cells increase occupancy and index storage; coarser cells reduce detail. Surface sampling often has approximately inverse-square scaling over a useful range, but our counts are measured rather than generated by that formula. Grid alignment, thin features and finite geometry produce departures from ideal scaling. The experiment quantifies discretization cost; it does not establish an optimal resolution without an application-specific error criterion.
+
+\begin{figure}[t]\centering
+\includegraphics[width=\columnwidth]{figures/measured_voxel_ablation.png}
+\caption{Actual Open3D voxelization counts for the original Owl mesh.}\label{fig:vox}
+\end{figure}
+
+\subsection{Visual Comparison and Error Analysis}
+\hyperref[fig:owl]{Figure~\ref*{fig:owl}} shows how representation changes alter inspectability. Sparse points identify salient tracked regions but leave many gaps. Dense samples fill more visible structure without supplying connectivity. A mesh offers continuous shading but may interpolate unsupported regions. Surface voxels expose the resolution trade-off explicitly. None of these views alone establishes a watertight or anatomically accurate model.
+
+\begin{figure}[t]\centering
+\includegraphics[width=\columnwidth]{figures/building_reconstruction.jpg}
+\caption{Saved Building reconstruction rendering. Repetitive textures and vegetation remain possible sources of erroneous or incomplete geometry; no drift-free accuracy claim is made.}\label{fig:building}
+\end{figure}
+
+\hyperref[fig:building]{Figure~\ref*{fig:building}} provides the architectural comparison. Apple is a failure case consistent with weak surface constraints. Smooth appearance and view-dependent reflections are plausible contributors, but the stored outputs alone do not isolate their causal effects. The project therefore reports the observed degenerate mesh separately from these hypotheses. Likewise, losing an image during registration does not prove motion blur or a particular elevation change without inspecting that image and its matches.
+
+Foreground masks reduce background participation but can erode thin geometry. White compositing does not resolve illumination inconsistency, repeated object structure or missing views. Sequential matching can also fail when filenames do not represent a smoothly sampled orbit. A more conservative workflow is to inspect the sparse component before expensive dense inference, validate the fused normals, and check the mesh before exporting voxels.
+
+Runtime was dominated operationally by dense processing in the observed runs. Because Dog and Cat were executed concurrently, the report does not use their elapsed times to compare algorithmic efficiency or promise completion times. Future benchmarking should isolate jobs, record hardware and settings, and repeat runs before reporting mean latency and variability.
+
+
+\subsection{Reproducibility and Submission Verification}
+The submitted archive was extracted into a new directory before verification. The tests were executed using the installed Python environment rather than a newly downloaded dependency environment; this distinction matters because fresh extraction checks path portability, but does not independently validate installation on every operating system. All 16 automated tests passed in the extracted tree. They cover input validation, frame selection, foreground-mask consistency, depth filtering and gallery behavior.
+
+The CPU geometry demonstration reads two provided Owl artifacts, exports representations, and writes a new output folder. This verifies geometry I/O, voxel generation and figure export without running expensive stereo. It is deliberately described as representation conversion, not as reconstruction of a complete object from two images. A second test runs the image pipeline on eight resized Owl photographs with GPU feature processing disabled and dense reconstruction skipped. All eight images register into one sparse component. This verifies the documented command path and basic SfM integration, while the small sample cannot reproduce the full 30-image benchmark's coverage.
+
+The extracted gallery was checked through its HTTP endpoints: project discovery, the main page, the selected-project view, geometry delivery, metadata and voxel data. These checks validate server routing and file availability. They do not replace manual browser inspection or prove that every rendering control works on every graphics driver. The browser obtains Three.js from a CDN, so the saved-output viewer requires internet access even though CPU geometry conversion can run offline after dependency installation.
+
+\subsection{Distribution Size and Representation Trade-offs}
+For Owl, the packaged surface contains 20,908 triangles compared with 1,322,719 in the original. Building is reduced from 7,938,476 to 39,102 triangles, and baseline Dog from 1,254,984 to 50,253. These reductions improve transfer size and interactive loading, but should not be presented as lossless compression. Fine relief and small disconnected components can change. The report's benchmark table describes original artifacts; the package records the reduced counts separately so that a reviewer does not mistake a preview mesh for the full experimental output.
+
+The voxel experiment illustrates another kind of reduction. Moving from $\alpha=0.005$ to $0.010$ lowers the observed index-storage requirement from 173,556 to 45,516 bytes, about a 74\% decrease. The corresponding discretization is coarser, so the smaller file is not a free improvement. A future application should select voxel width using its tolerance for missed narrow features, surface quantization and storage cost, rather than optimizing file size alone.
+
+\subsection{Threats to Validity and a Controlled Follow-up}
+Several factors limit causal interpretation of the recorded runs. Baseline and masked experiments were not generated through a single randomized protocol with identical settings. The collected scenes differ in texture, visibility and scale. Concurrent GPU jobs affect runtime. The available quantitative indicators describe registration and artifact complexity, while no ground-truth surface supports an accuracy comparison. These limitations prevent claims that white backgrounds, masking or a particular image count universally improve reconstruction.
+
+A controlled follow-up should hold the image set, camera model, image resolution, matcher settings and hardware allocation fixed. One factor could then be varied at a time: original versus composited RGB, feature masks enabled versus disabled, or post-stereo depth filtering enabled versus disabled. Each condition should retain camera poses, registered-image counts, reprojection statistics, dense-sample counts and mesh-validation results. Where a reference scan is available, alignment and geometric accuracy metrics should be reported separately from completeness.
+
+The Dog meshing diagnostic is narrower and more directly interpretable because it changes only density trimming while reusing the same oriented cloud. Its nonempty result demonstrates that sample removal was decisive for this particular empty-surface outcome. It does not show that all retained triangles are supported by observations. Useful next checks would measure connected components, non-manifold edges and the distribution of point-to-surface distances, followed by inspection of underside closure and thin details. Those checks are proposed validation steps, not measurements already performed in this report.
+
+\balance
+\section{Conclusion}
+The project delivers a working integration of multi-view reconstruction, foreground handling, geometric export and browser inspection. Successful baselines demonstrate sparse, dense, mesh and voxel outputs, while Apple and the masked reruns reveal why intermediate validation matters. A measured voxel experiment exposes the storage cost of discretization. The Dog diagnostic specifically identifies density trimming as the reason its initial Poisson output was empty, without equating the untrimmed result with a validated surface.
+
+Limitations include arbitrary physical scale, no reference geometry, incomplete acquisition provenance, segmentation boundary loss and limited GPU resources. Future improvements should add calibrated scale, ground-truth evaluation, controlled preprocessing comparisons, per-stage resumability and explicit mesh-quality checks. The submitted package separates compact demonstrations from full experimental artifacts so that a reviewer can run a small example without downloading large datasets or model weights.
+
+A useful next quality gate would distinguish an empty surface, a nonempty but disconnected surface, and a geometrically validated model. Recording these states explicitly would prevent downstream tools from treating successful file creation as successful reconstruction, while preserving intermediate clouds for targeted diagnosis.
+
+\begin{thebibliography}{10}
+\bibitem{sfm} J.~L. Sch\"onberger and J.-M. Frahm, ``\href{https://openaccess.thecvf.com/content_cvpr_2016/papers/Schonberger_Structure-From-Motion_Revisited_CVPR_2016_paper.pdf}{Structure-from-motion revisited,}'' in \emph{Proc. IEEE CVPR}, 2016, pp.~4104--4113.
+\bibitem{mvs} J.~L. Sch\"onberger, E.~Zheng, M.~Pollefeys, and J.-M. Frahm, ``\href{https://demuc.de/papers/schoenberger2016mvs.pdf}{Pixelwise view selection for unstructured multi-view stereo,}'' in \emph{Proc. ECCV}, 2016, pp.~501--518.
+\bibitem{open3d} Q.-Y. Zhou, J.~Park, and V.~Koltun, ``\href{https://arxiv.org/abs/1801.09847}{Open3D: A modern library for 3D data processing,}'' \emph{arXiv:1801.09847}, 2018.
+\bibitem{hartley} R.~Hartley and A.~Zisserman, \href{https://www.robots.ox.ac.uk/~vgg/hzbook/}{\emph{Multiple View Geometry in Computer Vision}}, 2nd ed. Cambridge, U.K.: Cambridge University Press, 2004.
+\bibitem{sift} D.~G. Lowe, ``\href{https://doi.org/10.1023/B:VISI.0000029664.99615.94}{Distinctive image features from scale-invariant keypoints,}'' \emph{Int. J. Comput. Vis.}, vol.~60, no.~2, pp.~91--110, 2004.
+\bibitem{ransac} M.~A. Fischler and R.~C. Bolles, ``\href{https://doi.org/10.1145/358669.358692}{Random sample consensus: A paradigm for model fitting with applications to image analysis and automated cartography,}'' \emph{Commun. ACM}, vol.~24, no.~6, pp.~381--395, 1981, doi: \href{https://doi.org/10.1145/358669.358692}{10.1145/358669.358692}.
+\bibitem{bundle} B.~Triggs, P.~F. McLauchlan, R.~I. Hartley, and A.~W. Fitzgibbon, ``\href{https://doi.org/10.1007/3-540-44480-7_21}{Bundle adjustment---A modern synthesis,}'' in \emph{Vision Algorithms: Theory and Practice}, LNCS 1883. Berlin, Germany: Springer, 2000, pp.~298--372.
+\bibitem{poisson} M.~Kazhdan and H.~Hoppe, ``\href{https://www.hhoppe.com/screenedpoisson.pdf}{Screened Poisson surface reconstruction,}'' \emph{ACM Trans. Graph.}, vol.~32, no.~3, Art.~29, 2013.
+\bibitem{rembg} D.~Gatis and contributors, ``\href{https://github.com/danielgatis/rembg}{rembg: Background removal,}'' software repository. [Online]. Available: \url{https://github.com/danielgatis/rembg}
+
+\bibitem{isnet} X.~Qin, H.~Dai, X.~Hu, D.-P. Fan, L.~Shao, and L.~Van Gool, ``\href{https://arxiv.org/abs/2203.03041}{Highly accurate dichotomous image segmentation,}'' in \emph{Proc. ECCV}, 2022; \emph{arXiv:2203.03041}.
+\end{thebibliography}
+
+\section*{Author Contributions}
+\noindent The following table summarizes the responsibilities for project integration, evaluation and documentation. The underlying reconstruction algorithms remain credited to their original authors.
+\begin{center}
+\small
+\refstepcounter{table}\label{tab:contributions}\textsc{Table \thetable}\\[2pt]
+Author Contributions\\[5pt]
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{.30\columnwidth}>{\raggedright\arraybackslash}p{.19\columnwidth}>{\raggedright\arraybackslash}p{.45\columnwidth}@{}}
+\toprule
+\textbf{Member} & \textbf{Roll number} & \textbf{Contribution}\\\midrule
+Kothapally Anjan Reddy & 23bcs071 & SfM integration, feature matching and camera-registration workflow.\\\midrule
+Babhale Rohan Laxmikant & 23bcs026 & MVS integration, foreground preprocessing and depth filtering.\\\midrule
+Gujja Sri Varshith Rao & 23bcs051 & Geometric exports, representation conversion and interactive visualization.\\\midrule
+Koushik C & 23bcs073 & Evaluation, failure analysis, reproducibility checks and report preparation.\\\bottomrule
+\end{tabular}
+\end{center}
+\end{document}
