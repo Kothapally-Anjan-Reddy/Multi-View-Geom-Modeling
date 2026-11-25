@@ -1,0 +1,7 @@
+{
+  "name": "Cat RGB",
+  "input_images": 108,
+  "source": "D:\\CS SUBJECTS COLLEGE\\3D Computer Vision\\multiview_3d_cv_project\\images\\Cat_RGB",
+  "masks": "D:\\CS SUBJECTS COLLEGE\\3D Computer Vision\\multiview_3d_cv_project\\prepared\\Cat_white_masks",
+  "created_at": "2026-11-22T10:04:36.579733+00:00"
+}

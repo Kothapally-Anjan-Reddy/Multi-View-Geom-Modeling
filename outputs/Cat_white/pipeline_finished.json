@@ -1,0 +1,4 @@
+{
+  "status": "failed_at_mesh_validation",
+  "reason": "Poisson mesh has zero vertices and zero faces; dense point cloud is available"
+}

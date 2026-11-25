@@ -1,0 +1,14 @@
+{
+  "cat_completed": true,
+  "point_count": 311221,
+  "finite_points": true,
+  "has_normals": true,
+  "original_mesh_bytes": 248,
+  "finite_normals": true,
+  "zero_normals": 0,
+  "normal_length_median": 1.0000000012237966,
+  "untrimmed_exit_code": 0,
+  "untrimmed_vertices": 977922,
+  "untrimmed_triangles": 1955723,
+  "finding": "Disabling density trimming produces a nonempty mesh: the default trim=10 removed the reconstructed surface. The diagnostic mesh still needs visual quality review."
+}
